@@ -4,23 +4,27 @@ export type TceqAgentRoute = {
   id: TceqSpecialistId;
   agentName: string;
   task: string;
+  reportTitle: string;
 };
 
 const routes: Record<TceqSpecialistId, TceqAgentRoute> = {
   complaint: {
     id: "complaint",
     agentName: "Complaint Caseworker",
-    task: "Retrieve complaint records and case context"
+    task: "Retrieve complaint records and case context",
+    reportTitle: "Complaint Intelligence Summary"
   },
   water: {
     id: "water",
     agentName: "Water Quality Analyst",
-    task: "Analyze water-quality complaints and supporting evidence"
+    task: "Analyze water-quality complaints and supporting evidence",
+    reportTitle: "Water Quality Analysis"
   },
   spill: {
     id: "spill",
     agentName: "Spill Response Analyst",
-    task: "Assess spill, waste, or release incidents and response actions"
+    task: "Assess spill, waste, or release incidents and response actions",
+    reportTitle: "Spill Response Assessment"
   }
 };
 

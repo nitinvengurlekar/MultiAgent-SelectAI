@@ -122,11 +122,10 @@ export function ConversationsAiPanel() {
                   </span>
                   <div>
                     <div className="text-sm font-bold text-stone-950">Analysis complete</div>
-                    <div className="mt-0.5 text-xs text-stone-500">Grounded response from Oracle Select AI Agent</div>
                   </div>
                 </div>
                 {activeRoute && (
-                  <div className="rounded-lg border border-[#8f3b2f]/15 bg-[#fff3ef] px-3 py-2 sm:max-w-xs sm:text-right">
+                  <div className="sm:max-w-sm sm:text-right">
                     <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#8f3b2f]/70">Executed by</div>
                     <div className="mt-0.5 text-xs font-bold text-[#8f3b2f]">{activeRoute.agentName}</div>
                     <div className="mt-0.5 text-[11px] leading-4 text-stone-600">{activeRoute.task}</div>
@@ -134,7 +133,7 @@ export function ConversationsAiPanel() {
                 )}
               </div>
               <div className="px-5 py-5 sm:px-6">
-                <FormattedAgentResponse response={result.response} />
+                <FormattedAgentResponse response={result.response} reportTitle={activeRoute?.reportTitle || "Analysis Summary"} />
               </div>
             </div>
           </div>
