@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import "@fontsource-variable/public-sans";
 import "./globals.css";
 
 export const metadata: Metadata = {
