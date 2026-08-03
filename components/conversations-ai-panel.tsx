@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUp, Loader2 } from "lucide-react";
+import { ArrowRight, ArrowUp, Bot, Loader2 } from "lucide-react";
+import { getTceqAgentRoute, type TceqAgentRoute } from "@/lib/tceq-agent-routing";
 
 type ConversationResult = {
   prompt: string;
@@ -13,12 +14,14 @@ export function ConversationsAiPanel() {
   const [result, setResult] = useState<ConversationResult | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [activeRoute, setActiveRoute] = useState<TceqAgentRoute | null>(null);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const nextPrompt = prompt.trim();
     if (!nextPrompt) return;
 
+    setActiveRoute(getTceqAgentRoute(nextPrompt));
     setLoading(true);
     setError("");
     try {
@@ -78,10 +81,27 @@ export function ConversationsAiPanel() {
         )}
 
         {loading && (
-          <div className="flex min-h-64 items-center justify-center text-center text-sm text-stone-600">
-            <div>
-              <Loader2 className="mx-auto mb-3 h-6 w-6 animate-spin text-[#8f3b2f]" />
-              Running Select AI Agent...
+          <div className="flex min-h-64 items-center justify-center text-center">
+            <div className="w-full max-w-lg">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[#fff3ef] text-[#8f3b2f]">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+              <p className="mt-4 text-base font-bold text-stone-950">
+                Running {activeRoute?.agentName || "Select AI Agent"}...
+              </p>
+              {activeRoute && (
+                <>
+                  <p className="mt-2 text-sm text-stone-600">{activeRoute.task}</p>
+                  <div className="mt-5 flex items-center justify-center gap-2 text-xs font-semibold text-stone-500">
+                    <span className="flex items-center gap-1.5 rounded-full bg-stone-100 px-3 py-1.5">
+                      <Bot className="h-3.5 w-3.5" />
+                      Supervisor
+                    </span>
+                    <ArrowRight className="h-4 w-4 text-[#8f3b2f]" />
+                    <span className="rounded-full bg-[#fff3ef] px-3 py-1.5 text-[#8f3b2f]">{activeRoute.agentName}</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}

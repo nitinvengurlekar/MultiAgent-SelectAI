@@ -23,8 +23,7 @@ import {
   Waves
 } from "lucide-react";
 import type { EcoHistoryItem } from "@/lib/ecoagency-types";
-
-type SpecialistId = "complaint" | "water" | "spill";
+import { getTceqAgentRoute } from "@/lib/tceq-agent-routing";
 
 type ConversationResult = {
   prompt: string;
@@ -85,13 +84,6 @@ const promptPresets = [
   }
 ];
 
-function inferSpecialist(prompt: string): SpecialistId {
-  const normalized = prompt.toLowerCase();
-  if (/water|contamin|watershed|discharge|drinking/.test(normalized)) return "water";
-  if (/spill|oil|waste|leak|release|remedi|ldar/.test(normalized)) return "spill";
-  return "complaint";
-}
-
 function SpecialistCard({
   specialist,
   active,
@@ -140,10 +132,11 @@ export function TceqMultiAgentPanel() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const routedAgentId = useMemo(
-    () => inferSpecialist(submittedPrompt || prompt),
+  const routedRoute = useMemo(
+    () => getTceqAgentRoute(submittedPrompt || prompt),
     [prompt, submittedPrompt]
   );
+  const routedAgentId = routedRoute.id;
   const routedAgent = specialists.find((specialist) => specialist.id === routedAgentId) || specialists[0];
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -345,7 +338,7 @@ export function TceqMultiAgentPanel() {
                     <div>
                       <Loader2 className="mx-auto h-7 w-7 animate-spin text-[#0b6b66]" />
                       <p className="mt-3 text-sm font-semibold text-slate-700">{routedAgent.name} is analyzing the request</p>
-                      <p className="mt-1 text-xs text-slate-500">Oracle Select AI Agent is coordinating data and tools.</p>
+                      <p className="mt-1 text-xs text-slate-500">{routedRoute.task}</p>
                     </div>
                   </div>
                 )}
@@ -376,7 +369,7 @@ export function TceqMultiAgentPanel() {
                     state: submittedPrompt ? "done" : "next",
                     icon: Network
                   },
-                  { title: routedAgent.name, text: "Run domain-specific analysis", state: loading ? "active" : result ? "done" : "next", icon: routedAgent.icon },
+                  { title: routedAgent.name, text: routedRoute.task, state: loading ? "active" : result ? "done" : "next", icon: routedAgent.icon },
                   { title: "Oracle Autonomous Database", text: "Retrieve governed complaint data", state: loading ? "active" : result ? "done" : "next", icon: Database },
                   { title: "Supervisor", text: "Synthesize evidence and deliver answer", state: result ? "done" : "next", icon: Sparkles }
                 ].map((step, index, steps) => (
