@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, ArrowUp, Bot, Loader2 } from "lucide-react";
+import { ArrowRight, ArrowUp, Bot, CheckCircle2, Loader2 } from "lucide-react";
 import { getTceqAgentRoute, type TceqAgentRoute } from "@/lib/tceq-agent-routing";
+import { FormattedAgentResponse } from "@/components/formatted-agent-response";
 
 type ConversationResult = {
   prompt: string;
@@ -22,6 +23,7 @@ export function ConversationsAiPanel() {
     if (!nextPrompt) return;
 
     setActiveRoute(getTceqAgentRoute(nextPrompt));
+    setPrompt("");
     setLoading(true);
     setError("");
     try {
@@ -108,13 +110,30 @@ export function ConversationsAiPanel() {
 
         {result && !loading && (
           <div className="space-y-5">
-            <div className="rounded-lg bg-stone-50 p-4">
-              <div className="text-xs font-bold uppercase tracking-wide text-stone-500">Prompt</div>
+            <div className="rounded-xl border border-stone-200 bg-stone-50 p-4">
+              <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-stone-500">Submitted request</div>
               <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-stone-800">{result.prompt}</p>
             </div>
-            <div>
-              <div className="text-xs font-bold uppercase tracking-wide text-stone-500">Response</div>
-              <pre className="mt-3 whitespace-pre-wrap font-sans text-base leading-7 text-stone-800">{result.response}</pre>
+            <div className="overflow-hidden rounded-xl border border-stone-200">
+              <div className="flex flex-col justify-between gap-3 border-b border-stone-200 bg-[#fcfbfa] px-5 py-4 sm:flex-row sm:items-center">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
+                    <CheckCircle2 className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <div className="text-sm font-bold text-stone-950">Analysis complete</div>
+                    <div className="mt-0.5 text-xs text-stone-500">Grounded response from Oracle Select AI Agent</div>
+                  </div>
+                </div>
+                {activeRoute && (
+                  <div className="rounded-full bg-[#fff3ef] px-3 py-1.5 text-xs font-bold text-[#8f3b2f]">
+                    {activeRoute.agentName}
+                  </div>
+                )}
+              </div>
+              <div className="px-5 py-5 sm:px-6">
+                <FormattedAgentResponse response={result.response} />
+              </div>
             </div>
           </div>
         )}
