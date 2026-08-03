@@ -20,6 +20,23 @@ function formatInline(text: string): ReactNode[] {
 }
 
 function parseFinding(text: string): Finding {
+  const pipeSegments = text.split(/\s*\|\s*/).map((part) => part.trim()).filter(Boolean);
+  if (pipeSegments.length > 1) {
+    const fields = new Map(
+      pipeSegments.map((segment) => {
+        const match = segment.match(/^([^:]+):\s*(.*)$/);
+        return [match?.[1]?.trim().toLowerCase() || "details", match?.[2]?.trim() || segment];
+      })
+    );
+
+    return {
+      location: fields.get("location") || null,
+      status: fields.get("status") || null,
+      details: fields.get("details") || fields.get("incident") || fields.get("summary") || "",
+      impact: fields.get("impact") || fields.get("potential impact") || null
+    };
+  }
+
   const segments = text.split(/\s+-\s+/).map((part) => part.trim()).filter(Boolean);
   const statusIndex = segments.findIndex((part) => /^status\s*:/i.test(part));
   const location = segments.length > 1 && statusIndex > 0 ? segments[0] : null;
@@ -93,10 +110,10 @@ export function FormattedAgentResponse({ response, reportTitle }: { response: st
                 )}
               </div>
               <div className="space-y-4 px-4 py-4">
-                <p>{formatInline(finding.details)}</p>
+                {finding.details && <p>{formatInline(finding.details)}</p>}
                 {finding.impact && (
                   <div className="rounded-lg border-l-2 border-amber-400 bg-amber-50/70 px-3 py-2.5">
-                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-800">Potential impact</div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-800">Incident & potential impact</div>
                     <p className="mt-1 text-sm leading-6 text-stone-700">{formatInline(finding.impact)}</p>
                   </div>
                 )}
