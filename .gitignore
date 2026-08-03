@@ -1,0 +1,24 @@
+# Local credentials and Oracle wallet artifacts
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.sso
+*.jks
+Wallet_*/
+wallet/
+wallets/
+
+# Dependencies and generated output
+node_modules/
+.next/
+out/
+dist/
+coverage/
+*.log
+
+# Local editor and OS files
+.DS_Store
+.vscode/
+.idea/
