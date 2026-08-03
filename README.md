@@ -1,6 +1,8 @@
-# EcoAgency Agentic Intelligence Demo
+# TCEQ MultiAgent SelectAI Demo
 
 A Next.js 15 demo for Oracle Autonomous Database `SELECT AI AGENT` workflows. The app presents curated EcoAgency scenarios based on the prompts in `Build-SelectAI-Agents-SQL.rtf`, executes them from server-side route handlers, and displays agent responses plus execution history.
+
+The additive TCEQ control-room experience visualizes a Supervisor routing work to Complaint Caseworker, Water Quality Analyst, and Spill Response Analyst roles. It reuses the same server-only Select AI Agent execution and Oracle ADB connection helpers; no database credentials are sent to the browser.
 
 The earlier DeepSec demo code remains in the workspace, but the primary app flow is now the EcoAgency Select AI Agent demo.
 
@@ -45,6 +47,7 @@ The Naveen `NOTICE_TYPE = NOV` regulated-entity masking extension is documented 
 ## Primary Routes
 
 - `/` - EcoAgency demo entry page
+- `/tceq` - TCEQ MultiAgent Supervisor and specialist control room
 - `/conversations-ai` - primary conversational Select AI Agent interface
 - `/demo-mode` - launcher for demo tracks, including DeepSec
 - `/deepsec/login` - Deep Data Security persona login

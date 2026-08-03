@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Bot, Database, ShieldCheck } from "lucide-react";
+import { ArrowRight, Bot, Database, Network, ShieldCheck } from "lucide-react";
 import { EcoNav } from "@/components/eco-nav";
 import { EcoBadge } from "@/components/eco-badge";
 import { getSession } from "@/lib/auth";
@@ -21,7 +21,28 @@ export default async function DemoModePage() {
           </p>
         </section>
 
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid gap-5 lg:grid-cols-3">
+          <article className="rounded-lg border border-[#0b6b66]/25 bg-[#f2fbf9] p-6 shadow-sm">
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-white text-[#0b6b66]">
+                <Network className="h-6 w-6" />
+              </span>
+              <EcoBadge tone="green">MultiAgent</EcoBadge>
+            </div>
+            <h2 className="text-2xl font-bold text-stone-950">TCEQ Control Room</h2>
+            <p className="mt-3 text-sm leading-6 text-stone-600">
+              See the Supervisor route environmental questions to complaint, water quality, and spill response specialists,
+              with a clear tool and execution trace.
+            </p>
+            <Link
+              href="/tceq"
+              className="mt-6 inline-flex h-11 items-center gap-2 rounded-md bg-[#0b6b66] px-4 text-sm font-bold text-white transition hover:bg-[#075752]"
+            >
+              Open TCEQ experience
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </article>
+
           <article className="rounded-lg border border-stone-200 bg-white p-6 shadow-sm">
             <div className="mb-5 flex items-start justify-between gap-4">
               <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-[#fff3ef] text-[#8f3b2f]">

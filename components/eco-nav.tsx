@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Database, MessageSquare, ShieldCheck } from "lucide-react";
+import { Database, MessageSquare, Network, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
+  { href: "/tceq", label: "TCEQ MultiAgent", icon: Network },
   { href: "/conversations-ai", label: "ConversationsAI", icon: MessageSquare },
   { href: "/demo-mode", label: "Demo Mode", icon: ShieldCheck }
 ];
@@ -22,7 +23,7 @@ export function EcoNav() {
           </span>
           <span>
             <span className="block text-sm font-bold uppercase tracking-wide text-stone-950">EcoAgency Agentic Intelligence</span>
-            <span className="block text-xs text-stone-500">Oracle Select AI Agent + MCP</span>
+            <span className="hidden text-xs text-stone-500 sm:block">Oracle Select AI Agent + MCP</span>
           </span>
         </Link>
         <nav className="flex items-center gap-2">
@@ -37,7 +38,7 @@ export function EcoNav() {
               )}
             >
               <item.icon className="h-4 w-4" />
-              <span>{item.label}</span>
+              <span className="hidden lg:inline">{item.label}</span>
             </Link>
           ))}
         </nav>
