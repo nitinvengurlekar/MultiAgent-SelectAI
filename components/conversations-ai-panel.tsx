@@ -126,8 +126,10 @@ export function ConversationsAiPanel() {
                   </div>
                 </div>
                 {activeRoute && (
-                  <div className="rounded-full bg-[#fff3ef] px-3 py-1.5 text-xs font-bold text-[#8f3b2f]">
-                    {activeRoute.agentName}
+                  <div className="rounded-lg border border-[#8f3b2f]/15 bg-[#fff3ef] px-3 py-2 sm:max-w-xs sm:text-right">
+                    <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#8f3b2f]/70">Executed by</div>
+                    <div className="mt-0.5 text-xs font-bold text-[#8f3b2f]">{activeRoute.agentName}</div>
+                    <div className="mt-0.5 text-[11px] leading-4 text-stone-600">{activeRoute.task}</div>
                   </div>
                 )}
               </div>
