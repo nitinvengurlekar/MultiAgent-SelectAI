@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 type Finding = {
+  trackingNumber: string | null;
   location: string | null;
   status: string | null;
   details: string;
@@ -30,9 +31,20 @@ function parseFinding(text: string): Finding {
     );
 
     return {
+      trackingNumber:
+        fields.get("tracking number") ||
+        fields.get("complaint tracking number") ||
+        fields.get("tracking no") ||
+        fields.get("tracking #") ||
+        null,
       location: fields.get("location") || null,
       status: fields.get("status") || null,
-      details: fields.get("details") || fields.get("incident") || fields.get("summary") || "",
+      details:
+        fields.get("incident summary") ||
+        fields.get("details") ||
+        fields.get("incident") ||
+        fields.get("summary") ||
+        "",
       impact: fields.get("impact") || fields.get("potential impact") || null
     };
   }
@@ -46,6 +58,7 @@ function parseFinding(text: string): Finding {
   const impactMatch = narrative.match(/^(.*?)(?=\b(?:Potential|Possible|Environmental impact|Risk of)\b)(.*)$/i);
 
   return {
+    trackingNumber: null,
     location,
     status,
     details: impactMatch?.[1]?.trim() || narrative,
@@ -102,7 +115,9 @@ export function FormattedAgentResponse({ response, reportTitle }: { response: st
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#8f3b2f] text-xs font-bold text-white">
                   {numbered[1]}
                 </span>
-                <h3 className="min-w-0 flex-1 text-sm font-bold text-stone-950">{finding.location || `Finding ${numbered[1]}`}</h3>
+                <h3 className="min-w-0 flex-1 text-sm font-bold text-stone-950">
+                  {finding.trackingNumber ? `Tracking #${finding.trackingNumber}` : finding.location || `Finding ${numbered[1]}`}
+                </h3>
                 {finding.status && (
                   <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ring-1 ring-inset ${statusTone(finding.status)}`}>
                     {finding.status}
@@ -110,7 +125,18 @@ export function FormattedAgentResponse({ response, reportTitle }: { response: st
                 )}
               </div>
               <div className="space-y-4 px-4 py-4">
-                {finding.details && <p>{formatInline(finding.details)}</p>}
+                {finding.location && (
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500">Location</div>
+                    <p className="mt-1 text-sm font-semibold text-stone-800">{formatInline(finding.location)}</p>
+                  </div>
+                )}
+                {finding.details && (
+                  <div>
+                    <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-stone-500">Incident summary</div>
+                    <p className="mt-1">{formatInline(finding.details)}</p>
+                  </div>
+                )}
                 {finding.impact && (
                   <div className="rounded-lg border-l-2 border-amber-400 bg-amber-50/70 px-3 py-2.5">
                     <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-amber-800">Incident & potential impact</div>

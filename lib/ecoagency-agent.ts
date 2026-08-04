@@ -51,7 +51,7 @@ export async function getAgentHistory(limit = 8, conversationId?: string): Promi
           FROM user_ai_agent_team_history
           ${conversationFilter}
           ORDER BY start_date DESC
-          FETCH FIRST 10 ROWS ONLY
+          FETCH FIRST ${conversationId ? "1" : "10"} ROWS ONLY
         ),
         latest_task AS (
           SELECT team_exec_id, task_name, agent_name, conversation_params, start_date,

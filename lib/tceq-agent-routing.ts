@@ -28,6 +28,25 @@ const routes: Record<TceqSpecialistId, TceqAgentRoute> = {
   }
 };
 
+export function getTceqAgentRoutes(prompt: string): TceqAgentRoute[] {
+  const normalized = prompt.toLowerCase();
+  const matches = [
+    /complaint|tracking|regulated entit|caseworker|intake|air-related|air quality/.test(normalized) ? routes.complaint : null,
+    /water|contamin|watershed|discharge|drinking|sampling/.test(normalized) ? routes.water : null,
+    /spill|oil|waste|leak|release|remedi|ldar|emergency-response/.test(normalized) ? routes.spill : null
+  ].filter((route): route is TceqAgentRoute => Boolean(route));
+
+  return matches.length ? matches : [routes.complaint];
+}
+
+export function getTceqRouteForAgentName(agentName: string | null | undefined): TceqAgentRoute | null {
+  const normalized = agentName?.toLowerCase() || "";
+  if (normalized.includes("complaint")) return routes.complaint;
+  if (normalized.includes("water_quality") || normalized.includes("water quality")) return routes.water;
+  if (normalized.includes("spill_response") || normalized.includes("spill response")) return routes.spill;
+  return null;
+}
+
 export function getTceqAgentRoute(prompt: string): TceqAgentRoute {
   const normalized = prompt.toLowerCase();
   if (/water|contamin|watershed|discharge|drinking/.test(normalized)) return routes.water;

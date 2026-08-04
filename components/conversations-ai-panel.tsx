@@ -1,13 +1,21 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ArrowRight, ArrowUp, Bot, CheckCircle2, Loader2, RotateCcw } from "lucide-react";
-import { getTceqAgentRoute, type TceqAgentRoute } from "@/lib/tceq-agent-routing";
+import { ArrowRight, ArrowUp, Bot, CheckCircle2, CircleX, Loader2, RotateCcw } from "lucide-react";
+import {
+  getTceqAgentRoute,
+  getTceqAgentRoutes,
+  getTceqRouteForAgentName,
+  type TceqAgentRoute
+} from "@/lib/tceq-agent-routing";
+import type { EcoHistoryItem } from "@/lib/ecoagency-types";
 import { FormattedAgentResponse } from "@/components/formatted-agent-response";
+import { LiveOrchestrationPanel } from "@/components/live-orchestration-panel";
 
 type ConversationResult = {
   prompt: string;
   response: string;
+  history: EcoHistoryItem[];
 };
 
 export function ConversationsAiPanel() {
@@ -17,6 +25,8 @@ export function ConversationsAiPanel() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeRoute, setActiveRoute] = useState<TceqAgentRoute | null>(null);
+  const [activeRoutes, setActiveRoutes] = useState<TceqAgentRoute[]>(getTceqAgentRoutes(""));
+  const resultFailed = Boolean(result && /(?:^|\n)\s*(?:task failed|ora-\d+)/i.test(result.response));
 
   function startNewConversation() {
     conversationId.current = null;
@@ -24,6 +34,7 @@ export function ConversationsAiPanel() {
     setResult(null);
     setError("");
     setActiveRoute(null);
+    setActiveRoutes(getTceqAgentRoutes(""));
   }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -32,6 +43,7 @@ export function ConversationsAiPanel() {
     if (!nextPrompt) return;
 
     setActiveRoute(getTceqAgentRoute(nextPrompt));
+    setActiveRoutes(getTceqAgentRoutes(nextPrompt));
     setPrompt("");
     setLoading(true);
     setError("");
@@ -44,7 +56,15 @@ export function ConversationsAiPanel() {
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "Prompt failed.");
       conversationId.current = body.conversationId;
-      setResult({ prompt: body.prompt, response: body.response });
+      const history = Array.isArray(body.history) ? body.history : [];
+      const executedRoutes = history
+        .map((item: EcoHistoryItem) => getTceqRouteForAgentName(item.agentName))
+        .filter((route: TceqAgentRoute | null): route is TceqAgentRoute => Boolean(route))
+        .filter((route: TceqAgentRoute, index: number, routes: TceqAgentRoute[]) =>
+          routes.findIndex((candidate) => candidate.id === route.id) === index
+        );
+      if (executedRoutes.length) setActiveRoutes(executedRoutes);
+      setResult({ prompt: body.prompt, response: body.response, history });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Prompt failed.");
     } finally {
@@ -53,7 +73,7 @@ export function ConversationsAiPanel() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5">
+    <div className="mx-auto max-w-6xl space-y-5">
       <form onSubmit={submit} className="rounded-xl border border-stone-200 bg-white p-3 shadow-sm">
         <div className="flex items-end gap-3">
           <label className="sr-only" htmlFor="conversation-prompt">
@@ -91,6 +111,7 @@ export function ConversationsAiPanel() {
 
       {error && <div className="rounded-lg bg-red-50 px-4 py-3 text-sm font-medium text-red-800">{error}</div>}
 
+      <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
       <section className="min-h-80 rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
         {!result && !loading && (
           <div className="flex min-h-64 items-center justify-center text-center">
@@ -138,11 +159,15 @@ export function ConversationsAiPanel() {
             <div className="overflow-hidden rounded-xl border border-stone-200">
               <div className="flex flex-col justify-between gap-3 border-b border-stone-200 bg-[#fcfbfa] px-5 py-4 sm:flex-row sm:items-center">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
-                    <CheckCircle2 className="h-5 w-5" />
+                  <span
+                    className={`flex h-9 w-9 items-center justify-center rounded-full ${
+                      resultFailed ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
+                    }`}
+                  >
+                    {resultFailed ? <CircleX className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
                   </span>
                   <div>
-                    <div className="text-sm font-bold text-stone-950">Analysis complete</div>
+                    <div className="text-sm font-bold text-stone-950">{resultFailed ? "Analysis failed" : "Analysis complete"}</div>
                   </div>
                 </div>
                 {activeRoute && (
@@ -160,6 +185,13 @@ export function ConversationsAiPanel() {
           </div>
         )}
       </section>
+        <aside className="order-first xl:order-last xl:sticky xl:top-5">
+          <LiveOrchestrationPanel
+            routes={activeRoutes}
+            status={loading ? "running" : error || resultFailed ? "error" : result ? "complete" : "idle"}
+          />
+        </aside>
+      </div>
     </div>
   );
 }
