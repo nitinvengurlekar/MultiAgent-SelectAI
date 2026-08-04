@@ -1,6 +1,7 @@
 import type { EcoScenario, ScenarioId } from "@/lib/ecoagency-types";
 
 export const agentTeamName = "OVERALL_COMPLAINT_AGENT_SEARCH_TEAM";
+export const multiAgentTeamName = "TCEQ_MULTIAGENT_TEAM_V2";
 
 export const ecoScenarios: EcoScenario[] = [
   {

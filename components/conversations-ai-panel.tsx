@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowRight, ArrowUp, Bot, CheckCircle2, Loader2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { ArrowRight, ArrowUp, Bot, CheckCircle2, Loader2, RotateCcw } from "lucide-react";
 import { getTceqAgentRoute, type TceqAgentRoute } from "@/lib/tceq-agent-routing";
 import { FormattedAgentResponse } from "@/components/formatted-agent-response";
 
@@ -11,11 +11,20 @@ type ConversationResult = {
 };
 
 export function ConversationsAiPanel() {
+  const conversationId = useRef<string | null>(null);
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState<ConversationResult | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [activeRoute, setActiveRoute] = useState<TceqAgentRoute | null>(null);
+
+  function startNewConversation() {
+    conversationId.current = null;
+    setPrompt("");
+    setResult(null);
+    setError("");
+    setActiveRoute(null);
+  }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -30,10 +39,11 @@ export function ConversationsAiPanel() {
       const response = await fetch("/api/ecoagency/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: nextPrompt })
+        body: JSON.stringify({ prompt: nextPrompt, conversationId: conversationId.current })
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error || "Prompt failed.");
+      conversationId.current = body.conversationId;
       setResult({ prompt: body.prompt, response: body.response });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Prompt failed.");
@@ -64,6 +74,17 @@ export function ConversationsAiPanel() {
             className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#8f3b2f] text-white transition hover:bg-[#733126] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowUp className="h-5 w-5" />}
+          </button>
+        </div>
+        <div className="mt-2 flex items-center justify-end">
+          <button
+            type="button"
+            onClick={startNewConversation}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-stone-500 transition hover:bg-stone-100 hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            New conversation
           </button>
         </div>
       </form>

@@ -1,7 +1,7 @@
 import "server-only";
 
 import type oracledb from "oracledb";
-import { agentTeamName, getScenario } from "@/lib/ecoagency-scenarios";
+import { agentTeamName, getScenario, multiAgentTeamName } from "@/lib/ecoagency-scenarios";
 import type { EcoHistoryItem, EcoRunResult } from "@/lib/ecoagency-types";
 import { withEcoConnection } from "@/lib/ecoagency-db";
 
@@ -40,12 +40,16 @@ export async function resetAgentTeam(connection?: oracledb.Connection) {
   return withEcoConnection(run);
 }
 
-export async function getAgentHistory(limit = 8): Promise<EcoHistoryItem[]> {
+export async function getAgentHistory(limit = 8, conversationId?: string): Promise<EcoHistoryItem[]> {
   return withEcoConnection(async (connection) => {
+    const conversationFilter = conversationId
+      ? `WHERE conversation_id = :conversationId`
+      : "";
     const result = await connection.execute<Record<string, unknown>>(
       `WITH latest_team AS (
           SELECT team_exec_id, team_name, start_date
           FROM user_ai_agent_team_history
+          ${conversationFilter}
           ORDER BY start_date DESC
           FETCH FIRST 10 ROWS ONLY
         ),
@@ -73,7 +77,7 @@ export async function getAgentHistory(limit = 8): Promise<EcoHistoryItem[]> {
         ORDER BY task.start_date DESC NULLS LAST,
                  p.created DESC NULLS LAST
         FETCH FIRST :limit ROWS ONLY`,
-      { limit }
+      conversationId ? { limit, conversationId } : { limit }
     );
 
     return (result.rows || []).map((row) => ({
@@ -109,7 +113,7 @@ export async function runScenario(scenarioId: string): Promise<EcoRunResult> {
   });
 }
 
-export async function runFreeformPrompt(prompt: string) {
+export async function runFreeformPrompt(prompt: string, requestedConversationId?: string) {
   const trimmed = prompt.trim();
   if (!trimmed) {
     throw new Error("Prompt is required.");
@@ -119,13 +123,40 @@ export async function runFreeformPrompt(prompt: string) {
   }
 
   return withEcoConnection(async (connection) => {
-    await resetAgentTeam(connection);
-    const sql = `select ai agent ${sqlLiteral(trimmed)}`;
-    const result = await connection.execute<Record<string, unknown>>(sql);
+    let conversationId = requestedConversationId;
+    if (!conversationId) {
+      const attributes = JSON.stringify({
+        title: "TCEQ MultiAgent dialog",
+        description: "Conversation context for the TCEQ MultiAgent Select AI demonstration.",
+        retention_days: 1,
+        conversation_length: 10
+      });
+      const conversationResult = await connection.execute<Record<string, unknown>>(
+        `SELECT DBMS_CLOUD_AI.CREATE_CONVERSATION(attributes => :attributes) AS "conversationId"
+         FROM dual`,
+        { attributes }
+      );
+      conversationId = textOf(valueOf(conversationResult.rows?.[0] || {}, "conversationId")) || undefined;
+    }
+    if (!conversationId) {
+      throw new Error("Oracle did not return a conversation ID.");
+    }
+
+    const params = JSON.stringify({ conversation_id: conversationId });
+    const result = await connection.execute<Record<string, unknown>>(
+      `SELECT DBMS_CLOUD_AI_AGENT.RUN_TEAM(
+          team_name => :teamName,
+          user_prompt => :prompt,
+          params => :params
+        ) AS "response"
+       FROM dual`,
+      { teamName: multiAgentTeamName, prompt: trimmed, params }
+    );
     const response = stringifyResponse(result.rows || []);
-    const history = await getAgentHistory(6);
+    const history = await getAgentHistory(12, conversationId);
 
     return {
+      conversationId,
       prompt: trimmed,
       response,
       history
