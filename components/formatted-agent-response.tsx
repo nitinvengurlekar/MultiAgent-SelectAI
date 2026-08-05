@@ -21,7 +21,8 @@ function formatInline(text: string): ReactNode[] {
 }
 
 export function parseResponseFinding(text: string): ResponseFinding {
-  const pipeSegments = text.split(/\s*\|\s*/).map((part) => part.trim()).filter(Boolean);
+  const parseText = text.replace(/\*\*/g, "");
+  const pipeSegments = parseText.split(/\s*\|\s*/).map((part) => part.trim()).filter(Boolean);
   if (pipeSegments.length > 1) {
     const fields = new Map(
       pipeSegments.map((segment) => {
@@ -49,12 +50,36 @@ export function parseResponseFinding(text: string): ResponseFinding {
     };
   }
 
-  const segments = text.split(/\s+-\s+/).map((part) => part.trim()).filter(Boolean);
+  const labeledFields = new Map<string, string>();
+  const fieldPattern = /\b(Tracking Number|Complaint Tracking Number|Tracking No|Tracking #|Location|Status|Incident Summary|Incident|Summary|Potential Impact|Impact):\s*(.*?)(?=,\s*(?:Tracking Number|Complaint Tracking Number|Tracking No|Tracking #|Location|Status|Incident Summary|Incident|Summary|Potential Impact|Impact):|$)/gi;
+  for (const match of parseText.matchAll(fieldPattern)) {
+    labeledFields.set(match[1].toLowerCase(), match[2].trim());
+  }
+  if (labeledFields.size > 1) {
+    return {
+      trackingNumber:
+        labeledFields.get("tracking number") ||
+        labeledFields.get("complaint tracking number") ||
+        labeledFields.get("tracking no") ||
+        labeledFields.get("tracking #") ||
+        null,
+      location: labeledFields.get("location") || null,
+      status: labeledFields.get("status") || null,
+      details:
+        labeledFields.get("incident summary") ||
+        labeledFields.get("incident") ||
+        labeledFields.get("summary") ||
+        "",
+      impact: labeledFields.get("potential impact") || labeledFields.get("impact") || null
+    };
+  }
+
+  const segments = parseText.split(/\s+-\s+/).map((part) => part.trim()).filter(Boolean);
   const statusIndex = segments.findIndex((part) => /^status\s*:/i.test(part));
   const location = segments.length > 1 && statusIndex > 0 ? segments[0] : null;
   const status = statusIndex >= 0 ? segments[statusIndex].replace(/^status\s*:\s*/i, "") : null;
   const narrativeParts = segments.filter((_, index) => index !== statusIndex && (!location || index !== 0));
-  const narrative = (narrativeParts.length ? narrativeParts : [text]).join(" — ");
+  const narrative = (narrativeParts.length ? narrativeParts : [parseText]).join(" — ");
   const impactMatch = narrative.match(/^(.*?)(?=\b(?:Potential|Possible|Environmental impact|Risk of)\b)(.*)$/i);
 
   return {
@@ -67,10 +92,20 @@ export function parseResponseFinding(text: string): ResponseFinding {
 }
 
 export function extractResponseFindings(response: string): ResponseFinding[] {
+  const normalized = response.replace(/\r\n/g, "\n");
+  const inlineMarkers = Array.from(normalized.matchAll(/(?:^|\s)(\d+)[.)]\s+(?=(?:\*\*)?(?:Tracking|Complaint Tracking|Location|Status|Incident)\b)/g));
+  if (inlineMarkers.length) {
+    return inlineMarkers.map((marker, index) => {
+      const start = (marker.index || 0) + marker[0].length;
+      const end = inlineMarkers[index + 1]?.index ?? normalized.length;
+      return parseResponseFinding(normalized.slice(start, end).trim());
+    });
+  }
+
   const records: string[] = [];
   let current = "";
 
-  for (const rawLine of response.replace(/\r\n/g, "\n").split("\n")) {
+  for (const rawLine of normalized.split("\n")) {
     const numbered = rawLine.trim().match(/^\d+[.)]\s+(.+)$/);
     if (numbered) {
       if (current) records.push(current);
@@ -94,7 +129,10 @@ function statusTone(status: string) {
 }
 
 export function FormattedAgentResponse({ response, reportTitle }: { response: string; reportTitle: string }) {
-  const lines = response.replace(/\r\n/g, "\n").split("\n");
+  const lines = response
+    .replace(/\r\n/g, "\n")
+    .replace(/\s+(?=\d+[.)]\s+(?:\*\*)?(?:Tracking|Complaint Tracking|Location|Status|Incident)\b)/g, "\n")
+    .split("\n");
   const firstContentIndex = lines.findIndex((line) => line.trim());
 
   return (
