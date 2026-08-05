@@ -30,10 +30,11 @@ const routes: Record<TceqSpecialistId, TceqAgentRoute> = {
 
 export function getTceqAgentRoutes(prompt: string): TceqAgentRoute[] {
   const normalized = prompt.toLowerCase();
+  const knowledgeRequest = /\bldar\b|leak detection and repair|knowledge[ -]?base|program guidance|policy guidance|regulatory guidance|supporting document/.test(normalized);
   const matches = [
-    /complaint|tracking|regulated entit|caseworker|intake|air-related|air quality/.test(normalized) ? routes.complaint : null,
+    knowledgeRequest || /complaint|tracking|regulated entit|caseworker|intake|air-related|air quality/.test(normalized) ? routes.complaint : null,
     /water|contamin|watershed|discharge|drinking|sampling/.test(normalized) ? routes.water : null,
-    /spill|oil|waste|leak|release|remedi|ldar|emergency-response/.test(normalized) ? routes.spill : null
+    !knowledgeRequest && /spill|oil|waste|leak|release|remedi|emergency-response/.test(normalized) ? routes.spill : null
   ].filter((route): route is TceqAgentRoute => Boolean(route));
 
   return matches.length ? matches : [routes.complaint];
@@ -49,7 +50,10 @@ export function getTceqRouteForAgentName(agentName: string | null | undefined): 
 
 export function getTceqAgentRoute(prompt: string): TceqAgentRoute {
   const normalized = prompt.toLowerCase();
+  if (/\bldar\b|leak detection and repair|knowledge[ -]?base|program guidance|policy guidance|regulatory guidance|supporting document/.test(normalized)) {
+    return routes.complaint;
+  }
   if (/water|contamin|watershed|discharge|drinking/.test(normalized)) return routes.water;
-  if (/spill|oil|waste|leak|release|remedi|ldar/.test(normalized)) return routes.spill;
+  if (/spill|oil|waste|leak|release|remedi/.test(normalized)) return routes.spill;
   return routes.complaint;
 }

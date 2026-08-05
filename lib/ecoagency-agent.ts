@@ -2,7 +2,7 @@ import "server-only";
 
 import type oracledb from "oracledb";
 import { agentTeamName, getScenario, multiAgentTeamName } from "@/lib/ecoagency-scenarios";
-import type { EcoHistoryItem, EcoRunResult } from "@/lib/ecoagency-types";
+import type { EcoHistoryItem, EcoRunResult, EcoToolHistoryItem } from "@/lib/ecoagency-types";
 import { withEcoConnection } from "@/lib/ecoagency-db";
 
 function sqlLiteral(value: string) {
@@ -91,6 +91,40 @@ export async function getAgentHistory(limit = 8, conversationId?: string): Promi
   });
 }
 
+async function getAgentToolHistory(
+  connection: oracledb.Connection,
+  limit = 12,
+  conversationId?: string
+): Promise<EcoToolHistoryItem[]> {
+  const conversationFilter = conversationId ? `WHERE conversation_id = :conversationId` : "";
+  const result = await connection.execute<Record<string, unknown>>(
+    `WITH latest_team AS (
+        SELECT team_exec_id
+        FROM user_ai_agent_team_history
+        ${conversationFilter}
+        ORDER BY start_date DESC
+        FETCH FIRST 1 ROW ONLY
+      )
+      SELECT
+        tool.tool_name AS "toolName",
+        tool.agent_name AS "agentName",
+        tool.task_name AS "taskName",
+        TO_CHAR(tool.start_date, 'YYYY-MM-DD HH24:MI:SS') AS "startedAt"
+      FROM user_ai_agent_tool_history tool
+      JOIN latest_team team ON team.team_exec_id = tool.team_exec_id
+      ORDER BY tool.start_date, tool.task_order
+      FETCH FIRST :limit ROWS ONLY`,
+    conversationId ? { conversationId, limit } : { limit }
+  );
+
+  return (result.rows || []).map((row) => ({
+    toolName: textOf(valueOf(row, "toolName")),
+    agentName: textOf(valueOf(row, "agentName")),
+    taskName: textOf(valueOf(row, "taskName")),
+    startedAt: textOf(valueOf(row, "startedAt"))
+  }));
+}
+
 export async function runScenario(scenarioId: string): Promise<EcoRunResult> {
   const scenario = getScenario(scenarioId);
   if (!scenario) {
@@ -123,6 +157,8 @@ export async function runFreeformPrompt(prompt: string, requestedConversationId?
   }
 
   return withEcoConnection(async (connection) => {
+    const requestedTeamName = process.env.TCEQ_MULTIAGENT_TEAM_NAME?.trim();
+    const conversationTeamName = requestedTeamName || multiAgentTeamName;
     let conversationId = requestedConversationId;
     if (!conversationId) {
       const attributes = JSON.stringify({
@@ -150,16 +186,18 @@ export async function runFreeformPrompt(prompt: string, requestedConversationId?
           params => :params
         ) AS "response"
        FROM dual`,
-      { teamName: multiAgentTeamName, prompt: trimmed, params }
+      { teamName: conversationTeamName, prompt: trimmed, params }
     );
     const response = stringifyResponse(result.rows || []);
     const history = await getAgentHistory(12, conversationId);
+    const toolHistory = await getAgentToolHistory(connection, 12, conversationId);
 
     return {
       conversationId,
       prompt: trimmed,
       response,
-      history
+      history,
+      toolHistory
     };
   });
 }

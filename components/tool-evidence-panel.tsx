@@ -1,5 +1,5 @@
 import { CheckCircle2, CircleDashed, Database, FileSearch, Wrench } from "lucide-react";
-import type { EcoHistoryItem } from "@/lib/ecoagency-types";
+import type { EcoHistoryItem, EcoToolHistoryItem } from "@/lib/ecoagency-types";
 import type { TceqAgentRoute, TceqSpecialistId } from "@/lib/tceq-agent-routing";
 
 const configuredTools: Record<TceqSpecialistId, string[]> = {
@@ -11,13 +11,16 @@ const configuredTools: Record<TceqSpecialistId, string[]> = {
 export function ToolEvidencePanel({
   routes,
   history,
+  toolHistory,
   response
 }: {
   routes: TceqAgentRoute[];
   history: EcoHistoryItem[];
+  toolHistory: EcoToolHistoryItem[];
   response?: string;
 }) {
   const tools = Array.from(new Set(routes.flatMap((route) => configuredTools[route.id])));
+  const observedTools = new Set(toolHistory.map((item) => item.toolName).filter(Boolean));
   const observedAgents = Array.from(new Set(history.map((item) => item.agentName).filter(Boolean))) as string[];
   const hasKnowledgeCitation = Boolean(response && /\b(?:evidence|source|reference|document)s?\s*:/i.test(response));
 
@@ -40,8 +43,8 @@ export function ToolEvidencePanel({
           </div>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {tools.map((tool) => (
-              <span key={tool} className="rounded-md bg-white px-2 py-1 font-mono text-[9px] text-stone-600 ring-1 ring-inset ring-stone-200">
-                {tool}
+              <span key={tool} className={`rounded-md px-2 py-1 font-mono text-[9px] ring-1 ring-inset ${observedTools.has(tool) ? "bg-emerald-50 text-emerald-800 ring-emerald-200" : "bg-white text-stone-600 ring-stone-200"}`}>
+                {tool}{observedTools.has(tool) ? " · observed" : ""}
               </span>
             ))}
           </div>
@@ -67,7 +70,11 @@ export function ToolEvidencePanel({
             <p className="text-xs font-bold text-stone-800">Knowledge-base evidence</p>
           </div>
           <p className="mt-1.5 text-[11px] leading-5 text-stone-500">
-            {hasKnowledgeCitation ? "Citation labels observed in the response." : "No citation label observed in the response."}
+            {observedTools.has("COMPLAINT_RAG_TOOL")
+              ? "COMPLAINT_RAG_TOOL invocation observed in Oracle history."
+              : hasKnowledgeCitation
+                ? "Citation labels observed in the response."
+                : "No RAG invocation or citation label observed."}
           </p>
         </div>
       </div>

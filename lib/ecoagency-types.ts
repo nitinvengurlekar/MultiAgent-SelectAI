@@ -28,6 +28,13 @@ export type EcoHistoryItem = {
   startedAt: string | null;
 };
 
+export type EcoToolHistoryItem = {
+  toolName: string | null;
+  agentName: string | null;
+  taskName: string | null;
+  startedAt: string | null;
+};
+
 export type EcoRunResult = {
   scenario: EcoScenario;
   response: string;

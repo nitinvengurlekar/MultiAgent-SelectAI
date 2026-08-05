@@ -8,17 +8,19 @@ import {
   getTceqRouteForAgentName,
   type TceqAgentRoute
 } from "@/lib/tceq-agent-routing";
-import type { EcoHistoryItem } from "@/lib/ecoagency-types";
+import type { EcoHistoryItem, EcoToolHistoryItem } from "@/lib/ecoagency-types";
 import { FormattedAgentResponse } from "@/components/formatted-agent-response";
 import { LiveOrchestrationPanel } from "@/components/live-orchestration-panel";
 import { DeterministicResponseChart } from "@/components/deterministic-response-chart";
 import { ToolEvidencePanel } from "@/components/tool-evidence-panel";
 import { ConversationVisibilityPanel } from "@/components/conversation-visibility-panel";
+import { KnowledgeGroundingGuidance } from "@/components/knowledge-grounding-guidance";
 
 type ConversationResult = {
   prompt: string;
   response: string;
   history: EcoHistoryItem[];
+  toolHistory: EcoToolHistoryItem[];
 };
 
 const showcasePrompts = [
@@ -38,9 +40,9 @@ const showcasePrompts = [
       "For Johnson County, show up to 4 emergency-response spill records. Include incident number, location, receiving water body, released material, amount, status, and action taken."
   },
   {
-    label: "Supervisor · Cross-domain briefing",
+    label: "Supervisor · Cross-domain counts",
     prompt:
-      "Prepare a source-separated briefing with up to 2 Johnson County complaint records, up to 2 Johnson County emergency-response spill records, and up to 2 recent Barton Creek water-quality sampling records. Label each source, keep scopes separate, and do not infer causation."
+      "Use all three specialists. Return exactly three source-labelled count lines and no causal conclusions: Complaint - count complaint records where COUNTY is TRAVIS; Spill Response - count distinct spill INCIDENTNUMBER records where COUNTY is TRAVIS; Water Quality - count measurement rows where WATERSHED is Lady Bird Lake, PARAMETER is DISSOLVED OXYGEN, and SAMPLE_DATE is in calendar year 2024. Do not use web search or RAG."
   },
   {
     label: "Spill Response Analyst · Incident 422276",
@@ -72,6 +74,9 @@ export function ConversationsAiPanel() {
   const [activeRoutes, setActiveRoutes] = useState<TceqAgentRoute[]>(getTceqAgentRoutes(""));
   const [turns, setTurns] = useState<ConversationResult[]>([]);
   const resultFailed = Boolean(result && /(?:^|\n)\s*(?:task failed|ora-\d+)/i.test(result.response));
+  const resultIsKnowledgeGuidance = Boolean(
+    result && /\bldar\b|leak detection and repair|knowledge[ -]?base|program guidance|policy guidance|regulatory guidance|supporting document/i.test(result.prompt)
+  );
 
   function startNewConversation() {
     conversationId.current = null;
@@ -103,14 +108,16 @@ export function ConversationsAiPanel() {
       if (!response.ok) throw new Error(body.error || "Prompt failed.");
       conversationId.current = body.conversationId;
       const history = Array.isArray(body.history) ? body.history : [];
+      const toolHistory = Array.isArray(body.toolHistory) ? body.toolHistory : [];
       const executedRoutes = history
         .map((item: EcoHistoryItem) => getTceqRouteForAgentName(item.agentName))
         .filter((route: TceqAgentRoute | null): route is TceqAgentRoute => Boolean(route))
         .filter((route: TceqAgentRoute, index: number, routes: TceqAgentRoute[]) =>
           routes.findIndex((candidate) => candidate.id === route.id) === index
         );
-      if (executedRoutes.length) setActiveRoutes(executedRoutes);
-      const nextResult = { prompt: body.prompt, response: body.response, history };
+      setActiveRoutes(executedRoutes);
+      setActiveRoute(executedRoutes[0] || null);
+      const nextResult = { prompt: body.prompt, response: body.response, history, toolHistory };
       setResult(nextResult);
       setTurns((currentTurns) => [...currentTurns, nextResult]);
     } catch (err) {
@@ -251,8 +258,17 @@ export function ConversationsAiPanel() {
                 )}
               </div>
               <div className="px-5 py-5 sm:px-6">
-                <FormattedAgentResponse response={result.response} reportTitle={activeRoute?.reportTitle || "Analysis Summary"} />
+                <FormattedAgentResponse
+                  response={result.response}
+                  reportTitle={resultIsKnowledgeGuidance ? "Knowledge Base Guidance" : activeRoute?.reportTitle || "Analysis Summary"}
+                  formatFindings={!resultIsKnowledgeGuidance}
+                />
                 {!resultFailed && <DeterministicResponseChart response={result.response} />}
+                {resultIsKnowledgeGuidance && (
+                  <KnowledgeGroundingGuidance
+                    ragObserved={result.toolHistory.some((item) => item.toolName === "COMPLAINT_RAG_TOOL")}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -263,7 +279,12 @@ export function ConversationsAiPanel() {
             routes={activeRoutes}
             status={loading ? "running" : error || resultFailed ? "error" : result ? "complete" : "idle"}
           />
-          <ToolEvidencePanel routes={activeRoutes} history={result?.history || []} response={result?.response} />
+          <ToolEvidencePanel
+            routes={activeRoutes}
+            history={result?.history || []}
+            toolHistory={result?.toolHistory || []}
+            response={result?.response}
+          />
           <ConversationVisibilityPanel turns={turns} />
         </aside>
       </div>

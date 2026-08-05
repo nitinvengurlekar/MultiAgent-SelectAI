@@ -128,11 +128,20 @@ function statusTone(status: string) {
     : "bg-emerald-50 text-emerald-800 ring-emerald-200";
 }
 
-export function FormattedAgentResponse({ response, reportTitle }: { response: string; reportTitle: string }) {
-  const lines = response
-    .replace(/\r\n/g, "\n")
-    .replace(/\s+(?=\d+[.)]\s+(?:\*\*)?(?:Tracking|Complaint Tracking|Location|Status|Incident)\b)/g, "\n")
-    .split("\n");
+export function FormattedAgentResponse({
+  response,
+  reportTitle,
+  formatFindings = true
+}: {
+  response: string;
+  reportTitle: string;
+  formatFindings?: boolean;
+}) {
+  const normalizedResponse = response.replace(/\r\n/g, "\n");
+  const lines = (formatFindings
+    ? normalizedResponse.replace(/\s+(?=\d+[.)]\s+(?:\*\*)?(?:Tracking|Complaint Tracking|Location|Status|Incident)\b)/g, "\n")
+    : normalizedResponse
+  ).split("\n");
   const firstContentIndex = lines.findIndex((line) => line.trim());
 
   return (
@@ -167,6 +176,16 @@ export function FormattedAgentResponse({ response, reportTitle }: { response: st
 
         const numbered = line.match(/^(\d+)[.)]\s+(.+)$/);
         if (numbered) {
+          if (!formatFindings) {
+            return (
+              <div key={`number-${index}`} className="flex gap-3 py-1">
+                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-stone-100 text-xs font-bold text-[#8f3b2f]">
+                  {numbered[1]}
+                </span>
+                <p className="min-w-0 flex-1">{formatInline(numbered[2])}</p>
+              </div>
+            );
+          }
           const finding = parseResponseFinding(numbered[2]);
           return (
             <article key={`number-${index}`} className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-[0_8px_24px_-22px_#1c1917]">
