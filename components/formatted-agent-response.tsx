@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-type Finding = {
+export type ResponseFinding = {
   trackingNumber: string | null;
   location: string | null;
   status: string | null;
@@ -20,7 +20,7 @@ function formatInline(text: string): ReactNode[] {
   );
 }
 
-function parseFinding(text: string): Finding {
+export function parseResponseFinding(text: string): ResponseFinding {
   const pipeSegments = text.split(/\s*\|\s*/).map((part) => part.trim()).filter(Boolean);
   if (pipeSegments.length > 1) {
     const fields = new Map(
@@ -66,6 +66,27 @@ function parseFinding(text: string): Finding {
   };
 }
 
+export function extractResponseFindings(response: string): ResponseFinding[] {
+  const records: string[] = [];
+  let current = "";
+
+  for (const rawLine of response.replace(/\r\n/g, "\n").split("\n")) {
+    const numbered = rawLine.trim().match(/^\d+[.)]\s+(.+)$/);
+    if (numbered) {
+      if (current) records.push(current);
+      current = numbered[1];
+    } else if (current && rawLine.trim() && !/^#{1,4}\s+/.test(rawLine.trim())) {
+      current += ` ${rawLine.trim()}`;
+    } else if (current && /^#{1,4}\s+/.test(rawLine.trim())) {
+      records.push(current);
+      current = "";
+    }
+  }
+
+  if (current) records.push(current);
+  return records.map(parseResponseFinding);
+}
+
 function statusTone(status: string) {
   return /open|active|pending|investigat/i.test(status)
     ? "bg-amber-50 text-amber-800 ring-amber-200"
@@ -108,7 +129,7 @@ export function FormattedAgentResponse({ response, reportTitle }: { response: st
 
         const numbered = line.match(/^(\d+)[.)]\s+(.+)$/);
         if (numbered) {
-          const finding = parseFinding(numbered[2]);
+          const finding = parseResponseFinding(numbered[2]);
           return (
             <article key={`number-${index}`} className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-[0_8px_24px_-22px_#1c1917]">
               <div className="flex flex-wrap items-center gap-3 border-b border-stone-100 bg-stone-50/70 px-4 py-3">

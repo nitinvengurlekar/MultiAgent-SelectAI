@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ArrowRight, ArrowUp, Bot, CheckCircle2, CircleX, Loader2, RotateCcw } from "lucide-react";
+import { ArrowRight, ArrowUp, Bot, CheckCircle2, CircleX, Loader2, MessageCircle, RotateCcw, Sparkles } from "lucide-react";
 import {
   getTceqAgentRoute,
   getTceqAgentRoutes,
@@ -11,12 +11,56 @@ import {
 import type { EcoHistoryItem } from "@/lib/ecoagency-types";
 import { FormattedAgentResponse } from "@/components/formatted-agent-response";
 import { LiveOrchestrationPanel } from "@/components/live-orchestration-panel";
+import { DeterministicResponseChart } from "@/components/deterministic-response-chart";
+import { ToolEvidencePanel } from "@/components/tool-evidence-panel";
+import { ConversationVisibilityPanel } from "@/components/conversation-visibility-panel";
 
 type ConversationResult = {
   prompt: string;
   response: string;
   history: EcoHistoryItem[];
 };
+
+const showcasePrompts = [
+  {
+    label: "Complaint Caseworker · Air complaints",
+    prompt:
+      "List up to 5 air-related complaints in Johnson County. For each, provide the tracking number, status, location, and a one-sentence incident summary."
+  },
+  {
+    label: "Water Quality Analyst · Barton Creek samples",
+    prompt:
+      "For the Barton Creek watershed, show up to 4 recent water-quality sampling records. Include site name, sample date, parameter, result, unit, and qualifier."
+  },
+  {
+    label: "Spill Response Analyst · Johnson County spills",
+    prompt:
+      "For Johnson County, show up to 4 emergency-response spill records. Include incident number, location, receiving water body, released material, amount, status, and action taken."
+  },
+  {
+    label: "Supervisor · Cross-domain briefing",
+    prompt:
+      "Prepare a source-separated briefing with up to 2 Johnson County complaint records, up to 2 Johnson County emergency-response spill records, and up to 2 recent Barton Creek water-quality sampling records. Label each source, keep scopes separate, and do not infer causation."
+  },
+  {
+    label: "Spill Response Analyst · Incident 422276",
+    prompt:
+      "For incident 422276. 1. Take into account all the information from overall_assessment and summarize the incident 2. Provide a sentiment analysis of the action taken 3. Summarize what could have been better if anything"
+  },
+  {
+    label: "Complaint Caseworker · Water contamination comparison",
+    prompt:
+      "Which top 10 complaints numbers are associated with water contamination, which county has the highest complaints of this contamination and is it high compared to the county population."
+  },
+  {
+    label: "Knowledge base · LDAR program guidance",
+    prompt: "Explain the leak detection and repair program"
+  },
+  {
+    label: "Follow-up · Manager email (run last)",
+    prompt: "Create an email summarizing everything we discussed so I can send to my manager"
+  }
+] as const;
 
 export function ConversationsAiPanel() {
   const conversationId = useRef<string | null>(null);
@@ -26,6 +70,7 @@ export function ConversationsAiPanel() {
   const [loading, setLoading] = useState(false);
   const [activeRoute, setActiveRoute] = useState<TceqAgentRoute | null>(null);
   const [activeRoutes, setActiveRoutes] = useState<TceqAgentRoute[]>(getTceqAgentRoutes(""));
+  const [turns, setTurns] = useState<ConversationResult[]>([]);
   const resultFailed = Boolean(result && /(?:^|\n)\s*(?:task failed|ora-\d+)/i.test(result.response));
 
   function startNewConversation() {
@@ -35,6 +80,7 @@ export function ConversationsAiPanel() {
     setError("");
     setActiveRoute(null);
     setActiveRoutes(getTceqAgentRoutes(""));
+    setTurns([]);
   }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -64,7 +110,9 @@ export function ConversationsAiPanel() {
           routes.findIndex((candidate) => candidate.id === route.id) === index
         );
       if (executedRoutes.length) setActiveRoutes(executedRoutes);
-      setResult({ prompt: body.prompt, response: body.response, history });
+      const nextResult = { prompt: body.prompt, response: body.response, history };
+      setResult(nextResult);
+      setTurns((currentTurns) => [...currentTurns, nextResult]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Prompt failed.");
     } finally {
@@ -96,16 +144,40 @@ export function ConversationsAiPanel() {
             {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ArrowUp className="h-5 w-5" />}
           </button>
         </div>
-        <div className="mt-2 flex items-center justify-end">
-          <button
-            type="button"
-            onClick={startNewConversation}
-            disabled={loading}
-            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-stone-500 transition hover:bg-stone-100 hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            New conversation
-          </button>
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <label className="inline-flex min-w-0 items-center gap-2 text-xs font-semibold text-stone-600">
+            <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#8f3b2f]" />
+            <span className="shrink-0">Showcase prompt</span>
+            <select
+              value=""
+              onChange={(event) => setPrompt(event.target.value)}
+              disabled={loading}
+              aria-label="Choose a showcase prompt"
+              className="min-w-0 max-w-full rounded-md border border-stone-200 bg-stone-50 px-2.5 py-1.5 text-xs font-medium text-stone-700 outline-none transition hover:bg-white focus:border-[#8f3b2f] focus:ring-2 focus:ring-[#8f3b2f]/15 disabled:cursor-not-allowed disabled:opacity-50 sm:max-w-md"
+            >
+              <option value="">Choose a validated example…</option>
+              {showcasePrompts.map((example) => (
+                <option key={example.label} value={example.prompt}>
+                  {example.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex items-center justify-between gap-2 sm:justify-end">
+            <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${turns.length ? "bg-emerald-50 text-emerald-800" : "bg-stone-100 text-stone-500"}`}>
+              <MessageCircle className="h-3.5 w-3.5" />
+              {turns.length ? `Conversation active · ${turns.length} turn${turns.length === 1 ? "" : "s"}` : "New conversation"}
+            </span>
+            <button
+              type="button"
+              onClick={startNewConversation}
+              disabled={loading}
+              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-stone-500 transition hover:bg-stone-100 hover:text-stone-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Reset
+            </button>
+          </div>
         </div>
       </form>
 
@@ -180,16 +252,19 @@ export function ConversationsAiPanel() {
               </div>
               <div className="px-5 py-5 sm:px-6">
                 <FormattedAgentResponse response={result.response} reportTitle={activeRoute?.reportTitle || "Analysis Summary"} />
+                {!resultFailed && <DeterministicResponseChart response={result.response} />}
               </div>
             </div>
           </div>
         )}
       </section>
-        <aside className="order-first xl:order-last xl:sticky xl:top-5">
+        <aside className="order-first space-y-5 xl:order-last xl:sticky xl:top-5">
           <LiveOrchestrationPanel
             routes={activeRoutes}
             status={loading ? "running" : error || resultFailed ? "error" : result ? "complete" : "idle"}
           />
+          <ToolEvidencePanel routes={activeRoutes} history={result?.history || []} response={result?.response} />
+          <ConversationVisibilityPanel turns={turns} />
         </aside>
       </div>
     </div>
