@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, ArrowUp, Bot, CheckCircle2, CircleX, Loader2, MessageCircle, RotateCcw, Sparkles } from "lucide-react";
 import {
   getTceqAgentRoute,
@@ -16,12 +16,15 @@ import { ToolEvidencePanel } from "@/components/tool-evidence-panel";
 import { ConversationVisibilityPanel } from "@/components/conversation-visibility-panel";
 import { KnowledgeGroundingGuidance } from "@/components/knowledge-grounding-guidance";
 import { CrossDomainReport, isCrossDomainResponse } from "@/components/cross-domain-report";
+import { OciGuardrailsControl } from "@/components/oci-guardrails-control";
+import type { GuardrailRun, GuardrailServiceStatus } from "@/lib/guardrail-types";
 
 type ConversationResult = {
   prompt: string;
   response: string;
   history: EcoHistoryItem[];
   toolHistory: EcoToolHistoryItem[];
+  guardrails: GuardrailRun;
 };
 
 const showcasePrompts = [
@@ -51,6 +54,11 @@ const showcasePrompts = [
       "Use the Complaint Caseworker and COMPLAINT_SQL only. Treat 422276 as a complaint tracking number in the complaint data, not as an emergency-response spill incident number. Retrieve the complete matching complaint record, including OVERALL_ASSESSMENT and any available action, referral, resolution, or follow-up fields. Respond under exactly three headings: Incident Summary; Response Assessment; Improvement Opportunities. Base every statement on the retrieved record. Assess the recorded response neutrally and do not assume that a referral resolved the underlying issue. If outcome, verification, or follow-up evidence is absent, identify that absence as the improvement opportunity. Do not invent technical corrective actions or facts."
   },
   {
+    label: "OCI Guardrails · PII output test",
+    prompt:
+      "Use the Complaint Caseworker and COMPLAINT_SQL only. Treat 422276 as a complaint tracking number, not a spill incident number. Using the complete OVERALL_ASSESSMENT column for the matching complaint record, provide a detailed summary of the incident."
+  },
+  {
     label: "Complaint Caseworker · Water contamination comparison",
     prompt:
       "Which top 10 complaints numbers are associated with water contamination, which county has the highest complaints of this contamination and is it high compared to the county population."
@@ -74,11 +82,29 @@ export function ConversationsAiPanel() {
   const [activeRoute, setActiveRoute] = useState<TceqAgentRoute | null>(null);
   const [activeRoutes, setActiveRoutes] = useState<TceqAgentRoute[]>(getTceqAgentRoutes(""));
   const [turns, setTurns] = useState<ConversationResult[]>([]);
+  const [guardrailsEnabled, setGuardrailsEnabled] = useState(false);
+  const [guardrailServiceStatus, setGuardrailServiceStatus] = useState<GuardrailServiceStatus | null>(null);
+  const [latestGuardrailRun, setLatestGuardrailRun] = useState<GuardrailRun | null>(null);
   const resultFailed = Boolean(result && /(?:^|\n)\s*(?:task failed|ora-\d+)/i.test(result.response));
   const resultIsKnowledgeGuidance = Boolean(
     result && /\bldar\b|leak detection and repair|knowledge[ -]?base|program guidance|policy guidance|regulatory guidance|supporting document/i.test(result.prompt)
   );
   const resultIsCrossDomain = Boolean(result && isCrossDomainResponse(result.response));
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/ecoagency/guardrails/status")
+      .then((response) => response.json())
+      .then((status: GuardrailServiceStatus) => {
+        if (!cancelled) setGuardrailServiceStatus(status);
+      })
+      .catch(() => {
+        if (!cancelled) setGuardrailServiceStatus(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function startNewConversation() {
     conversationId.current = null;
@@ -88,6 +114,7 @@ export function ConversationsAiPanel() {
     setActiveRoute(null);
     setActiveRoutes(getTceqAgentRoutes(""));
     setTurns([]);
+    setLatestGuardrailRun(null);
   }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
@@ -104,9 +131,14 @@ export function ConversationsAiPanel() {
       const response = await fetch("/api/ecoagency/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: nextPrompt, conversationId: conversationId.current })
+        body: JSON.stringify({
+          prompt: nextPrompt,
+          conversationId: conversationId.current,
+          guardrailsEnabled
+        })
       });
       const body = await response.json();
+      if (body?.guardrails) setLatestGuardrailRun(body.guardrails);
       if (!response.ok) throw new Error(body.error || "Prompt failed.");
       conversationId.current = body.conversationId;
       const history = Array.isArray(body.history) ? body.history : [];
@@ -119,7 +151,7 @@ export function ConversationsAiPanel() {
         );
       setActiveRoutes(executedRoutes);
       setActiveRoute(executedRoutes[0] || null);
-      const nextResult = { prompt: body.prompt, response: body.response, history, toolHistory };
+      const nextResult = { prompt: body.prompt, response: body.response, history, toolHistory, guardrails: body.guardrails };
       setResult(nextResult);
       setTurns((currentTurns) => [...currentTurns, nextResult]);
     } catch (err) {
@@ -298,6 +330,17 @@ export function ConversationsAiPanel() {
           <ConversationVisibilityPanel turns={turns} />
         </aside>
       </div>
+
+      <OciGuardrailsControl
+        enabled={guardrailsEnabled}
+        onEnabledChange={(enabled) => {
+          setGuardrailsEnabled(enabled);
+          setLatestGuardrailRun(null);
+        }}
+        serviceStatus={guardrailServiceStatus}
+        latestRun={latestGuardrailRun}
+        disabled={loading}
+      />
     </div>
   );
 }

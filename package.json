@@ -13,6 +13,8 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.468.0",
     "next": "^15.5.19",
+    "oci-common": "^2.139.0",
+    "oci-generativeaiinference": "^2.139.0",
     "oracledb": "^6.7.1",
     "react": "19.0.0",
     "react-dom": "19.0.0",
