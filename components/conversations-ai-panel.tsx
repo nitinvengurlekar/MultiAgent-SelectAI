@@ -15,6 +15,7 @@ import { DeterministicResponseChart } from "@/components/deterministic-response-
 import { ToolEvidencePanel } from "@/components/tool-evidence-panel";
 import { ConversationVisibilityPanel } from "@/components/conversation-visibility-panel";
 import { KnowledgeGroundingGuidance } from "@/components/knowledge-grounding-guidance";
+import { CrossDomainReport, isCrossDomainResponse } from "@/components/cross-domain-report";
 
 type ConversationResult = {
   prompt: string;
@@ -45,9 +46,9 @@ const showcasePrompts = [
       "Use all three specialists. Return exactly three source-labelled count lines and no causal conclusions: Complaint - count complaint records where COUNTY is TRAVIS; Spill Response - count distinct spill INCIDENTNUMBER records where COUNTY is TRAVIS; Water Quality - count measurement rows where WATERSHED is Lady Bird Lake, PARAMETER is DISSOLVED OXYGEN, and SAMPLE_DATE is in calendar year 2024. Do not use web search or RAG."
   },
   {
-    label: "Spill Response Analyst · Incident 422276",
+    label: "Complaint Caseworker · Tracking 422276",
     prompt:
-      "For incident 422276. 1. Take into account all the information from overall_assessment and summarize the incident 2. Provide a sentiment analysis of the action taken 3. Summarize what could have been better if anything"
+      "Use the Complaint Caseworker and COMPLAINT_SQL only. Treat 422276 as a complaint tracking number in the complaint data, not as an emergency-response spill incident number. Retrieve the complete matching complaint record, including OVERALL_ASSESSMENT and any available action, referral, resolution, or follow-up fields. Respond under exactly three headings: Incident Summary; Response Assessment; Improvement Opportunities. Base every statement on the retrieved record. Assess the recorded response neutrally and do not assume that a referral resolved the underlying issue. If outcome, verification, or follow-up evidence is absent, identify that absence as the improvement opportunity. Do not invent technical corrective actions or facts."
   },
   {
     label: "Complaint Caseworker · Water contamination comparison",
@@ -77,6 +78,7 @@ export function ConversationsAiPanel() {
   const resultIsKnowledgeGuidance = Boolean(
     result && /\bldar\b|leak detection and repair|knowledge[ -]?base|program guidance|policy guidance|regulatory guidance|supporting document/i.test(result.prompt)
   );
+  const resultIsCrossDomain = Boolean(result && isCrossDomainResponse(result.response));
 
   function startNewConversation() {
     conversationId.current = null;
@@ -249,21 +251,29 @@ export function ConversationsAiPanel() {
                     <div className="text-sm font-bold text-stone-950">{resultFailed ? "Analysis failed" : "Analysis complete"}</div>
                   </div>
                 </div>
-                {activeRoute && (
+                {activeRoutes.length > 0 && (
                   <div className="sm:max-w-sm sm:text-right">
                     <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#8f3b2f]/70">Executed by</div>
-                    <div className="mt-0.5 text-xs font-bold text-[#8f3b2f]">{activeRoute.agentName}</div>
-                    <div className="mt-0.5 text-[11px] leading-4 text-stone-600">{activeRoute.task}</div>
+                    <div className="mt-0.5 text-xs font-bold text-[#8f3b2f]">
+                      {activeRoutes.length > 1 ? `Supervisor + ${activeRoutes.length} specialists` : activeRoutes[0].agentName}
+                    </div>
+                    <div className="mt-0.5 text-[11px] leading-4 text-stone-600">
+                      {activeRoutes.length > 1 ? "Coordinate source-separated cross-domain analysis" : activeRoutes[0].task}
+                    </div>
                   </div>
                 )}
               </div>
               <div className="px-5 py-5 sm:px-6">
-                <FormattedAgentResponse
-                  response={result.response}
-                  reportTitle={resultIsKnowledgeGuidance ? "Knowledge Base Guidance" : activeRoute?.reportTitle || "Analysis Summary"}
-                  formatFindings={!resultIsKnowledgeGuidance}
-                />
-                {!resultFailed && <DeterministicResponseChart response={result.response} />}
+                {resultIsCrossDomain ? (
+                  <CrossDomainReport response={result.response} toolHistory={result.toolHistory} />
+                ) : (
+                  <FormattedAgentResponse
+                    response={result.response}
+                    reportTitle={resultIsKnowledgeGuidance ? "Knowledge Base Guidance" : activeRoute?.reportTitle || "Analysis Summary"}
+                    formatFindings={!resultIsKnowledgeGuidance}
+                  />
+                )}
+                {!resultFailed && !resultIsCrossDomain && <DeterministicResponseChart response={result.response} />}
                 {resultIsKnowledgeGuidance && (
                   <KnowledgeGroundingGuidance
                     ragObserved={result.toolHistory.some((item) => item.toolName === "COMPLAINT_RAG_TOOL")}
