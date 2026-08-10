@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Database, MessageSquare, Network, ShieldCheck } from "lucide-react";
+import { Database, Network, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/tceq", label: "TCEQ MultiAgent", icon: Network },
-  { href: "/conversations-ai", label: "ConversationsAI", icon: MessageSquare },
-  { href: "/demo-mode", label: "Demo Mode", icon: ShieldCheck }
+  { href: "/conversations-ai", label: "Multi-Agent Conversational AI", icon: Network },
+  { href: "/demo-mode", label: "DDS Demo", icon: ShieldCheck }
 ];
 
 export function EcoNav() {
