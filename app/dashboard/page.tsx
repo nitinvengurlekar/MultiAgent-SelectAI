@@ -9,6 +9,8 @@ import { getEcoConfigStatus } from "@/lib/ecoagency-db";
 import { getAgentHistory } from "@/lib/ecoagency-agent";
 import type { EcoHistoryItem } from "@/lib/ecoagency-types";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardPage() {
   const status = getEcoConfigStatus();
   let history: EcoHistoryItem[] = [];
