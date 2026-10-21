@@ -39,14 +39,9 @@ const showcasePrompts = [
       "For the Barton Creek watershed, show up to 4 recent water-quality sampling records. Include site name, sample date, parameter, result, unit, and qualifier."
   },
   {
-    label: "Spill Response Analyst · Johnson County spills",
+    label: "Supervisor · Cross-domain operational snapshot",
     prompt:
-      "For Johnson County, show up to 4 emergency-response spill records. Include incident number, location, receiving water body, released material, amount, status, and action taken."
-  },
-  {
-    label: "Supervisor · Cross-domain counts",
-    prompt:
-      "Use all three specialists. Return exactly three source-labelled count lines and no causal conclusions: Complaint - count complaint records where COUNTY is TRAVIS; Spill Response - count distinct spill INCIDENTNUMBER records where COUNTY is TRAVIS; Water Quality - count measurement rows where WATERSHED is Lady Bird Lake, PARAMETER is DISSOLVED OXYGEN, and SAMPLE_DATE is in calendar year 2024. Do not use web search or RAG."
+      "Return exactly three source-labelled count lines, one source per line and do not combine lines. Do not infer causation: Complaint - count complaint records where COUNTY is TRAVIS; Spill Response - count distinct emergency-response spill incident numbers where COUNTY is TRAVIS; Water Quality - count water-quality measurement rows where the watershed is Lady Bird Lake, the parameter is dissolved oxygen, and the sample date is in calendar year 2024."
   },
   {
     label: "Complaint Caseworker · Tracking 422276",

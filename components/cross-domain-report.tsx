@@ -43,6 +43,9 @@ export function extractCrossDomainMetrics(response: string): CrossDomainMetric[]
   const metrics: CrossDomainMetric[] = [];
   const matches = response
     .replace(/\r\n/g, "\n")
+    // The Supervisor may place the three requested labels on one line. Treat
+    // a semicolon immediately before the next source label as a line break.
+    .replace(/;\s*(?=(?:Complaint|Spill Response|Water Quality)\s*[-:\u2013\u2014])/gi, "\n")
     .split("\n")
     .map((line) => line.trim().replace(/^[-*]\s*/, "").replace(/^\*\*(.+?)\*\*\s*/, "$1 "))
     .map((line) => line.match(/^(Complaint|Spill Response|Water Quality)\s*[-:\u2013\u2014]\s*([\d,]+)\s+(.+)$/i))
